@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📦 품번별 H/W랙 검색</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+        }
+        
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .content {
+            padding: 20px;
+        }
+        
+        .section {
+            margin-bottom: 25px;
+        }
+        
+        .section-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .file-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px dashed #ddd;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f8f9fa;
+            position: relative;
+        }
+        
+        .file-input:hover {
+            border-color: #4ECDC4;
+            background: #e8f5f4;
+        }
+        
+        .file-input.dragover {
+            border-color: #4ECDC4;
+            background: #e8f5f4;
+            transform: scale(1.02);
+        }
+        
+        .file-input input {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+            z-index: 2;
+        }
+        
+        .file-input-content {
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .search-section {
+            display: flex;
+            gap: 10px;
+            align-items: stretch;
+            margin-bottom: 15px;
+        }
+        
+        .input-group {
+            flex: 1;
+        }
+        
+        .part-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 20px;
+            text-align: center;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .part-input:focus {
+            outline: none;
+            border-color: #4ECDC4;
+            box-shadow: 0 0 10px rgba(78, 205, 196, 0.3);
+        }
+        
+        .btn {
+            padding: 15px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+        
+        .btn-search {
+            background: #4ECDC4;
+            color: white;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            text-align: center;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .result.success {
+            background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+            color: #2c3e50;
+        }
+        
+        .result.error {
+            background: linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%);
+            color: #2c3e50;
+        }
+        
+        .location-text {
+            font-size: 28px;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+        
+        .no-result {
+            font-size: 18px;
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        
+        .stats {
+            background: #e8f5f4;
+            padding: 10px;
+            border-radius: 10px;
+            margin-top: 10px;
+            text-align: center;
+            font-size: 14px;
+            color: #2c3e50;
+        }
+
+        /* iOS Safari 호환성 개선 */
+        @supports (-webkit-touch-callout: none) {
+            .file-input {
+                -webkit-appearance: none;
+                -webkit-touch-callout: none;
+                -webkit-user-select: none;
+            }
+            
+            .file-input input {
+                -webkit-appearance: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📦 품번별 H/W랙 검색</h1>
+        </div>
+        
+        <div class="content">
+            
+            <div class="section">
+                <div class="section-title">🔍 <strong>품번 입력 검색</strong></div>
+                
+                <div class="search-section">
+                    <div class="input-group">
+                        <input type="text" 
+                               id="partNumberInput" 
+                               class="part-input" 
+                               placeholder="품번을 입력하세요"
+                               maxlength="13"
+                               onclick="this.select()"
+                               oninput="validatePartNumber(this)">
+                    </div>
+                    <button class="btn btn-search" onclick="searchPartNumber()">
+                        🔍 <strong>검색</strong>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">📍 <strong>검색 결과</strong></div>
+                <div id="result" class="result">
+                    <div style="color: #666;">품번을 검색해주세요</div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">📊 <strong>엑셀 파일 업로드</strong></div>
+                <div class="file-input" id="fileDropZone">
+                    <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="loadExcelFile(event)">
+                    <div class="file-input-content">
+                        <div>📈 엑셀 파일을 선택하세요</div>
+                        <div style="font-size: 12px; color: #666; margin-top: 5px;">(.xlsx, .xls 파일)</div>
+                    </div>
+                </div>
+                <div id="fileStats" class="stats" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let excelData = [];
+
+        // iOS 감지
+        function isIOS() {
+            return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        }
+
+        // 드래그 앤 드롭 기능 초기화 (iOS가 아닌 경우에만)
+        function initDragAndDrop() {
+            if (isIOS()) {
+                // iOS에서는 드래그앤드롭 기능 비활성화
+                return;
+            }
+            
+            const dropZone = document.getElementById('fileDropZone');
+            
+            dropZone.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                dropZone.classList.add('dragover');
+            });
+            
+            dropZone.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+            });
+            
+            dropZone.addEventListener('drop', function(e) {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const file = files[0];
+                    if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+                        loadExcelFileFromDrop(file);
+                    } else {
+                        alert('엑셀 파일만 업로드 가능합니다. (.xlsx, .xls)');
+                    }
+                }
+            });
+        }
+
+        // 드롭된 파일 로드
+        function loadExcelFileFromDrop(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                processExcelData(e.target.result, file.name);
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // 엑셀 파일 로드
+        function loadExcelFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                processExcelData(e.target.result, file.name);
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // 엑셀 데이터 처리
+        function processExcelData(arrayBuffer, fileName) {
+            try {
+                const data = new Uint8Array(arrayBuffer);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                
+                // 헤더 제외하고 데이터 처리
+                excelData = jsonData.slice(1)
+                    .filter(row => row.length >= 2 && row[0] && row[1])
+                    .map(row => ({
+                        partNumber: String(row[0]).trim(),
+                        location: String(row[1]).trim()
+                    }));
+                
+                updateFileStatus(fileName, excelData.length);
+                
+                // 포커스를 품번 입력칸으로 이동
+                document.getElementById('partNumberInput').focus();
+            } catch (error) {
+                alert('엑셀 파일 읽기 오류: ' + error.message);
+            }
+        }
+
+        // 파일 상태 업데이트
+        function updateFileStatus(fileName, count) {
+            const fileInputContent = document.querySelector('.file-input-content');
+            const fileStats = document.getElementById('fileStats');
+            
+            fileInputContent.innerHTML = `✅ ${fileName}<br><small>업로드 완료</small>`;
+            fileStats.innerHTML = `📊 총 ${count}개 품번 로드됨`;
+            fileStats.style.display = 'block';
+            
+            const dropZone = document.querySelector('.file-input');
+            dropZone.style.borderColor = '#4ECDC4';
+            dropZone.style.background = '#e8f5f4';
+        }
+
+        // 페이지 로드 시 구글 드라이브에서 part.xlsx 자동 로드
+        function autoLoadDefaultFile() {
+            // 구글 드라이브 파일 ID 추출 및 다운로드 링크 생성
+            const fileId = '1fnmtoZoTUDbcXlkHGziC0actTX3pvqsr';
+            const googleDriveUrl = `https://raw.githubusercontent.com/kenshin80/trk/refs/heads/main/part.xlsx`;
+            
+            // 여러 방법으로 시도
+            const loadMethods = [
+                // 방법 1: 기본 fetch
+                () => fetch(googleDriveUrl),
+                // 방법 2: no-cors 모드
+                () => fetch(googleDriveUrl, { mode: 'no-cors' }),
+                // 방법 3: XMLHttpRequest 사용
+                () => new Promise((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('GET', googleDriveUrl, true);
+                    xhr.responseType = 'arraybuffer';
+                    xhr.onload = () => {
+                        if (xhr.status === 200) {
+                            resolve({ 
+                                ok: true, 
+                                arrayBuffer: () => Promise.resolve(xhr.response)
+                            });
+                        } else {
+                            reject(new Error(`HTTP ${xhr.status}`));
+                        }
+                    };
+                    xhr.onerror = () => reject(new Error('Network error'));
+                    xhr.send();
+                })
+            ];
+
+            async function tryLoad() {
+                for (let i = 0; i < loadMethods.length; i++) {
+                    try {
+                        console.log(`구글 드라이브 로드 시도 ${i + 1}/3...`);
+                        const response = await loadMethods[i]();
+                        
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        
+                        const data = await response.arrayBuffer();
+                        processExcelData(data, 'part.xlsx');
+                        console.log('구글 드라이브에서 part.xlsx 파일이 자동 로드되었습니다.');
+                        return; // 성공하면 종료
+                    } catch (err) {
+                        console.log(`로드 방법 ${i + 1} 실패:`, err.message);
+                        if (i === loadMethods.length - 1) {
+                            console.log('모든 로드 방법 실패. 수동 업로드를 사용하세요.');
+                            // 실패 시 사용자에게 알림
+                            showResult('구글 드라이브에서 파일 로드 실패. 엑셀 파일을 직접 업로드해 주세요.', 'error');
+                        }
+                    }
+                }
+            }
+
+            tryLoad();
+        }
+
+        // 품번 입력 유효성 검사
+        function validatePartNumber(input) {
+            let value = input.value.toUpperCase();
+            // 숫자와 영문자만 허용 (하이픈 제거)
+            value = value.replace(/[^A-Z0-9]/g, '');
+            
+            // 실제 값 저장 (하이픈 없음)
+            input.dataset.rawValue = value;
+            
+            // 화면 표시용 하이픈 추가 (6번째 자리)
+            if (value.length >= 6) {
+                input.value = value.substring(0, 5) + '-' + value.substring(5);
+            } else {
+                input.value = value;
+            }
+        }
+
+        // 품번에 하이픈 추가 (5번째 자리)
+        function addHyphenToPartNumber(partNumber) {
+            if (partNumber.length >= 5) {
+                return partNumber.substring(0, 5) + '-' + partNumber.substring(5);
+            }
+            return partNumber;
+        }
+
+        // 품번 검색
+        function searchPartNumber() {
+            const partNumberInput = document.getElementById('partNumberInput');
+            let partNumber = partNumberInput.value.trim();
+            
+            if (!partNumber) {
+                showResult('품번을 입력해주세요.', 'error');
+                partNumberInput.focus();
+                return;
+            }
+
+            if (excelData.length === 0) {
+                showResult('엑셀 파일을 먼저 업로드해주세요.', 'error');
+                return;
+            }
+
+            // 검색용 품번 생성 (하이픈 제거)
+            const cleanPartNumber = partNumber.replace(/[^A-Z0-9]/g, '');
+            const searchNumber = addHyphenToPartNumber(cleanPartNumber);
+            const found = excelData.find(item => item.partNumber === searchNumber);
+
+            if (found) {
+                showResult(found.location, 'success');
+            } else {
+                showResult(`품번을 찾을 수 없습니다: ${searchNumber}`, 'error');
+            }
+            
+            // 검색 후 품번 입력칸 전체 선택 및 포커스
+            partNumberInput.focus();
+            partNumberInput.select();
+        }
+
+        // 결과 표시
+        function showResult(text, type) {
+            const result = document.getElementById('result');
+            result.className = `result ${type}`;
+            
+            if (type === 'success') {
+                result.innerHTML = `<div class="location-text">📍 ${text}</div>`;
+            } else {
+                result.innerHTML = `<div class="no-result">${text}</div>`;
+            }
+        }
+
+        // 엔터키로 검색
+        document.getElementById('partNumberInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchPartNumber();
+            }
+        });
+
+        // 페이지 로드 시 초기화
+        window.addEventListener('DOMContentLoaded', function() {
+            initDragAndDrop();
+            autoLoadDefaultFile();
+            document.getElementById('partNumberInput').focus();
+        });
+    </script>
+</body>
+</html>
